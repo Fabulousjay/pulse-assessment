@@ -28,6 +28,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Buttons don't get a pointer cursor by default in most browsers, only
+   links do. Every active button in this app should show a hand cursor.
+   Disabled buttons keep the default cursor to signal they're inactive. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 /* IMPORTANT: mapboxgl.Marker positions its element via an inline
    `transform: translate(...)`. Never put a `transform`-based animation or
    transition directly on the marker's own root element — a CSS animated
