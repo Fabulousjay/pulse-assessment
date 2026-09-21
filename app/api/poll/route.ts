@@ -6,22 +6,34 @@ import type { PollResponse } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/poll?id= — the single endpoint that drives the live map.
+// GET /api/poll?id=&secret= — the single endpoint that drives the live map.
+// Requires the caller's session secret (issued once by /api/join) to prove
+// they own this id — without this check, anyone who saw an id in the peer
+// list could poll as that user and steal their pending signals.
 // It (1) heartbeats the caller, (2) reaps stale presence + orphan signals,
 // (3) returns the filtered online peers, and (4) drains this user's mailbox.
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   const id = params.get("id");
+  const secret = params.get("secret");
 
-  if (!id) {
-    return Response.json({ error: "missing id" }, { status: 400 });
+  if (!id || !secret) {
+    return Response.json({ error: "missing id or secret" }, { status: 400 });
+  }
+
+  const caller = await prisma.presence.findUnique({
+    where: { id },
+    select: { secret: true },
+  });
+  if (!caller || caller.secret !== secret) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const now = Date.now();
   const staleCutoff = new Date(now - STALE_MS);
   const signalCutoff = new Date(now - SIGNAL_TTL_MS);
 
-  // 1) Heartbeat — refresh lastSeen for the caller.
+  // 1) Heartbeat — refresh lastSeen for the caller only.
   await prisma.presence.updateMany({
     where: { id },
     data: { lastSeen: new Date(now) },

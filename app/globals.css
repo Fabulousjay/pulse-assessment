@@ -28,35 +28,50 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* Live user dots on the map - a soft ring-pulse announcing presence. */
+/* IMPORTANT: mapboxgl.Marker positions its element via an inline
+   `transform: translate(...)`. Never put a `transform`-based animation or
+   transition directly on the marker's own root element — a CSS animated
+   transform overrides Mapbox's positioning transform, causing the marker to
+   render at the wrong screen position (the overlay's top-left origin).
+   Pulse-style animations must live on an inner child element instead;
+   .marker-root wraps that child and is the node actually passed to Marker. */
+.marker-root {
+  /* Intentionally unstyled — Mapbox owns this element's transform. */
+}
+
+/* Live user dots on the map - other strangers, not you. A hollow outlined
+   ring so it reads as a structurally different shape from your own solid,
+   filled, glowing dot. Hover feedback uses border-color only, never
+   transform, since this element sits inside .marker-root. */
 .pulse-dot {
   width: 14px;
   height: 14px;
   border-radius: 9999px;
-  border: 2px solid rgba(2, 170, 176, 0.9);
+  background: transparent;
+  border: 2px solid #02aab0;
   cursor: pointer;
   padding: 0;
-  box-shadow: 0 0 0 rgba(2, 170, 176, 0.5);
-  animation: pulse-ring 2.4s ease-out infinite;
-  transition: transform 0.15s ease;
+  transition: border-color 0.15s ease, filter 0.15s ease;
 }
 
 .pulse-dot:hover {
-  transform: scale(1.3);
+  border-color: #03c4cb;
+  filter: drop-shadow(0 0 4px rgba(2, 170, 176, 0.6));
 }
 
-/* The user's own dot - a slow breathing scale, distinct from the ring-pulse
-   used on other peers. This is Pulse's one signature motion device: your own
-   presence, alive on the map, tied literally to the app's name. */
+/* The user's own dot - a slow breathing scale, distinct from the hollow ring
+   used on other peers. This is Pulse's one signature motion device. Lives
+   inside .marker-root, never on the root itself. */
 .pulse-me {
   position: relative;
-  width: 16px;
-  height: 16px;
+  width: 22px;
+  height: 22px;
   border-radius: 9999px;
   background: var(--accent-teal);
+  border: 3px solid #f2f1eb;
   cursor: default;
   animation: pulse-breathe 3.6s ease-in-out infinite;
-  filter: drop-shadow(0 0 6px rgba(2, 170, 176, 0.6));
+  filter: drop-shadow(0 0 8px rgba(2, 170, 176, 0.7));
 }
 
 .pulse-me-label {
@@ -64,27 +79,17 @@ body {
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 4px;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--foreground);
-  background: rgba(5, 8, 7, 0.85);
-  padding: 2px 7px;
+  margin-bottom: 6px;
+  z-index: 10;
+  font-size: 11px;
+  font-weight: 700;
+  color: #04100f;
+  background: var(--accent-teal);
+  padding: 3px 9px;
   border-radius: 9999px;
   white-space: nowrap;
-  letter-spacing: 0.01em;
-}
-
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0 rgba(2, 170, 176, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 8px rgba(2, 170, 176, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(2, 170, 176, 0);
-  }
+  letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 @keyframes pulse-breathe {

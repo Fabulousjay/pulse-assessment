@@ -10,7 +10,17 @@ export default function EntryGate({
   const [status, setStatus] = useState<"idle" | "locating" | "error">("idle");
   const [error, setError] = useState<string>("");
 
-  function enter() {
+    function enter() {
+    // Testing-only override: ?lat=X&lng=Y bypasses real geolocation entirely,
+    // avoiding flaky DevTools Sensor overrides during local testing.
+    const params = new URLSearchParams(window.location.search);
+    const testLat = params.get("lat");
+    const testLng = params.get("lng");
+    if (testLat && testLng) {
+      onReady(parseFloat(testLat), parseFloat(testLng));
+      return;
+    }
+
     if (!("geolocation" in navigator)) {
       setStatus("error");
       setError("Your browser doesn't support location access.");

@@ -17,9 +17,13 @@ const VALID_TYPES: SignalType[] = [
 
 const MAX_PAYLOAD = 64 * 1024; // SDP/ICE are small; cap to be safe.
 
-// POST /api/signal — body { fromId, toId, type, payload? }
+// POST /api/signal — body { fromId, toId, type, payload?, secret }.
 // Drops one message into the recipient's mailbox. Also manages the `busy`
 // flag so a user can only be in one connection at a time.
+// Requires the sender's session secret to prove they own fromId — without
+// this, anyone who saw a stranger's id could send fake signals (a spoofed
+// "end" to kick someone off their call, or a fake offer/answer/ice into
+// someone else's live connection) while pretending to be that person.
 export async function POST(request: NextRequest) {
   let body: unknown;
   try {
@@ -28,13 +32,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "invalid body" }, { status: 400 });
   }
 
-  const { fromId, toId, type, payload } = (body ?? {}) as Record<
-    string,
-    unknown
-  >;
+  const { fromId, toId, type, payload, secret } = (body ?? {}) as Record<string, unknown>;
 
   if (typeof fromId !== "string" || typeof toId !== "string") {
     return Response.json({ error: "invalid ids" }, { status: 400 });
+  }
+  if (typeof secret !== "string" || !secret) {
+    return Response.json({ error: "missing secret" }, { status: 400 });
   }
   if (typeof type !== "string" || !VALID_TYPES.includes(type as SignalType)) {
     return Response.json({ error: "invalid type" }, { status: 400 });
@@ -45,6 +49,14 @@ export async function POST(request: NextRequest) {
     (typeof payload !== "string" || payload.length > MAX_PAYLOAD)
   ) {
     return Response.json({ error: "invalid payload" }, { status: 400 });
+  }
+
+  const sender = await prisma.presence.findUnique({
+    where: { id: fromId },
+    select: { secret: true },
+  });
+  if (!sender || sender.secret !== secret) {
+    return Response.json({ error: "unauthorized" }, { status: 401 });
   }
 
   const signalType = type as SignalType;
