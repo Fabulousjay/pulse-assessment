@@ -33,3 +33,36 @@ model Signal {
 
   @@index([toId])
 }
+
+// Live Pulse — a single ephemeral group room that appears when enough
+// people are online at once. Everything here is transient: the room, its
+// members, and its messages are all deleted once expiresAt passes.
+model PulseRoom {
+  id        String   @id @default(uuid())
+  prompt    String // the shared icebreaker question for this room
+  createdAt DateTime @default(now())
+  expiresAt DateTime // server-enforced; access is refused past this time
+
+  @@index([expiresAt])
+}
+
+model PulseRoomMember {
+  id        String   @id @default(uuid())
+  roomId    String
+  sessionId String // links to Presence.id, but never exposed to other members
+  color     String // anonymous per-room identity, e.g. "Blue"
+  joinedAt  DateTime @default(now())
+
+  @@unique([roomId, sessionId])
+  @@index([roomId])
+}
+
+model PulseMessage {
+  id        String   @id @default(uuid())
+  roomId    String
+  color     String // the sender's anonymous color, NOT their sessionId
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+}
